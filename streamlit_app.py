@@ -6,28 +6,30 @@ st.set_page_config(page_title="Avyan Patel's Game", layout="centered")
 st.title("Avyan Patel's Game")
 
 root = os.path.dirname(__file__)
-# Likely filenames to check for your existing game script
-candidates = ["game_code.py", "game code.py", "game code", "app.py", "main.py"]
+
+# Only consider Python files. Never attempt to execute non-.py files (your repo contains a React/JSX file named 'game code').
+# This wrapper is intentionally conservative and will show an instructional message if no .py app is found.
+candidates = ["streamlit_app.py", "game_code.py", "app.py", "main.py"]
 found = None
 for name in candidates:
     p = os.path.join(root, name)
-    if os.path.exists(p):
+    if os.path.exists(p) and p.endswith('.py'):
         found = p
         break
 
 if not found:
-    st.error("Could not find your game script in the repository. Checked: " + ", ".join(candidates) + ". Please rename your file (avoid spaces) or update streamlit_app.py to point to the correct path.")
+    st.error(
+        "No Python Streamlit app found. I detected non-Python files (for example a React file named 'game code').\n\n"
+        "If your app is React/JSX, host it separately (Vercel/Netlify) and embed it into Streamlit via st.components.v1.iframe, or convert the UI to Python/Streamlit.\n\n"
+        "To proceed with Streamlit, add a Python file (e.g., game_code.py) that builds the UI with Streamlit and re-deploy."
+    )
 else:
-    st.write(f"Running game script: {os.path.basename(found)}")
+    st.write("Running game script: {}".format(os.path.basename(found)))
     try:
-        if found.endswith('.py'):
-            runpy.run_path(found, run_name='__main__')
-        else:
-            with open(found, 'r', encoding='utf-8') as f:
-                source = f.read()
-            exec(compile(source, found, 'exec'), {})
+        runpy.run_path(found, run_name='__main__')
     except Exception as e:
-        st.error(f"Failed to run {found}: {e}")
+        st.error("Failed to run {}: {}".format(found, e))
 
-# NOTE: If your game defines a function to start the Streamlit UI (e.g., main()),
-# you can instead import that function and call it explicitly for better integration.
+# Notes:
+# - This wrapper will not execute JS/JSX files. The file 'game code' in your repo appears to be a React component (JSX) and contains emoji characters that are invalid in Python source.
+# - I created a separate game.jsx file (copy of your original) so the React source is preserved with a proper extension. Host that React app separately or convert to Python.
