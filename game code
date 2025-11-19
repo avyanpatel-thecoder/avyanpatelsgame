@@ -1,0 +1,201 @@
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { FcGoogle } from "react-icons/fc";
+
+export default function PasswordGameApp() {
+  const [joining, setJoining] = useState(false);
+  const [hosting, setHosting] = useState(false);
+  const [hostReady, setHostReady] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [instructionsOver, setInstructionsOver] = useState(false);
+
+  const [nickname, setNickname] = useState("");
+  const [inLobby, setInLobby] = useState(false);
+  const [avatar, setAvatar] = useState(null);
+
+  const [players, setPlayers] = useState([]); // {name, password, crypto, avatar}
+  const [hacksFeed, setHacksFeed] = useState([]);
+
+  const passwordOptions = ["alpha", "beta", "gamma"];
+  const avatars = ["🐱", "🐶", "🐵", "🐸", "🐯", "🐧", "🐰", "🐼"];
+
+  // Add player
+  const addPlayer = (name) => {
+    if (!players.find(p => p.name === name)) {
+      setPlayers([...players, { name, password: null, crypto: 0, avatar: avatar }]);
+    }
+  };
+
+  // Select password
+  const selectPassword = (playerName, password) => {
+    setPlayers(players.map(p => p.name === playerName ? {...p, password} : p));
+  };
+
+  // Guess password
+  const guessPassword = (guesser, targetName, guess) => {
+    const target = players.find(p => p.name === targetName);
+    if (!target || !target.password) return;
+
+    if (guess === target.password) {
+      // Success
+      setHacksFeed([...hacksFeed, `${guesser} hacked ${targetName}!`]);
+      setPlayers(players.map(p => p.name === guesser ? {...p, crypto: p.crypto + 10} : p));
+      // Change target password
+      const newPassword = passwordOptions.find(p => p !== target.password);
+      setPlayers(players.map(p => p.name === targetName ? {...p, password: newPassword} : p));
+    } else {
+      setHacksFeed([...hacksFeed, `${guesser} failed to hack ${targetName}`]);
+    }
+  };
+
+  // Leaderboard
+  const leaderboard = [...players].sort((a,b) => b.crypto - a.crypto);
+
+  // === PLAYER INSTRUCTIONS SCREEN ===
+  if (gameStarted && !instructionsOver && !hosting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white p-4 text-center">
+        <Card className="w-full max-w-md p-6 space-y-6 text-center bg-gray-800">
+          <h1 className="text-3xl font-bold">Instructions</h1>
+          <p className="text-lg">Look up at the main screen for instructions.</p>
+          <div className="animate-pulse text-5xl mt-4">👆📺</div>
+          <Button className="mt-6 w-full" onClick={() => setInstructionsOver(true)}>I am ready</Button>
+        </Card>
+      </div>
+    );
+  }
+
+  // === GAME PLAY SCREEN ===
+  if (instructionsOver) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-green-100 p-4 text-center">
+        <Card className="w-full max-w-md p-6 space-y-6">
+          <h1 className="text-3xl font-bold">Game Started!</h1>
+          <p className="text-lg">Guess other players' passwords to earn crypto!</p>
+
+          <h2 className="text-xl mt-4">Players</h2>
+          {players.map(p => (
+            <div key={p.name} className="flex justify-between p-2 border rounded my-1">
+              <span>{p.avatar} {p.name}</span>
+              <span>{p.crypto} 💰</span>
+            </div>
+          ))}
+
+          <h2 className="text-xl mt-4">Make a Guess</h2>
+          <GuessForm players={players} onGuess={guessPassword} guesser={nickname} />
+
+          <h2 className="text-xl mt-4">Hacks Feed</h2>
+          <div className="h-32 overflow-y-auto border p-2 bg-black text-green-400 font-mono">
+            {hacksFeed.map((h, i) => <p key={i}>{h}</p>)}
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // === HOST CONTROL PANEL ===
+  if (hosting && hostReady && !gameStarted) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black text-green-400 font-mono p-4">
+        <Card className="w-full max-w-3xl p-6 space-y-6 bg-black border border-green-400">
+          <h1 className="text-3xl font-bold animate-pulse">💻 Hacker Control Panel 💻</h1>
+          <Button className="w-full text-xl py-6" onClick={() => setGameStarted(true)}>▶️ Launch Game</Button>
+          <div className="mt-6 bg-black border border-green-400 p-4 h-32 overflow-y-auto">
+            <h2 className="font-bold text-xl">Hacks Feed</h2>
+            {hacksFeed.length === 0 ? <p>No hacks yet...</p> : hacksFeed.map((hack, i) => <p key={i}>{hack}</p>)}
+          </div>
+          <div className="mt-6 bg-black border border-green-400 p-4 h-32 overflow-y-auto">
+            <h2 className="font-bold text-xl">Leaderboard</h2>
+            {leaderboard.length === 0 ? <p>No players yet...</p> : leaderboard.map((p, i) => <p key={i}>{`${i+1}. ${p.name} - ${p.crypto} 💰`}</p>)}
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // === PLAYER LOBBY ===
+  if (inLobby && !gameStarted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+        <Card className="w-full max-w-md p-6 space-y-6 text-center">
+          <h1 className="text-3xl font-bold">Lobby</h1>
+          <p className="text-lg">Waiting for the host to start the game...</p>
+          <div className="animate-pulse text-gray-500 text-3xl">⏳</div>
+          <h2 className="text-xl font-semibold mt-4">Choose Your Avatar</h2>
+          <div className="grid grid-cols-4 gap-4 text-3xl">
+            {avatars.map((icon) => (
+              <button key={icon} className={`p-3 border rounded-xl hover:bg-gray-200 transition ${avatar === icon ? "bg-gray-300" : ""}`} onClick={() => setAvatar(icon)}>{icon}</button>
+            ))}
+          </div>
+          {avatar && <p className="text-lg mt-4">You selected: <span className="text-2xl">{avatar}</span></p>}
+          <Button className="w-full mt-4" onClick={() => { addPlayer(nickname); setInLobby(true); }}>Join Game</Button>
+        </Card>
+      </div>
+    );
+  }
+
+  // === ENTER NICKNAME ===
+  if (joining) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+        <Card className="w-full max-w-md p-6 space-y-4 text-center">
+          <h1 className="text-2xl font-bold">Enter Nickname</h1>
+          <Input placeholder="Your Nickname" value={nickname} onChange={(e) => setNickname(e.target.value)} />
+          <Button className="w-full" onClick={() => setInLobby(true)}>Continue</Button>
+        </Card>
+      </div>
+    );
+  }
+
+  // === START PAGE ===
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <Card className="w-full max-w-lg p-6 space-y-8 text-center">
+        <h1 className="text-3xl font-bold">Join or Host Game</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4 p-4 border rounded-2xl shadow-sm bg-white">
+            <h2 className="text-xl font-semibold">Join Game</h2>
+            <Input placeholder="Enter Game Code" className="text-center" />
+            <Button className="w-full" onClick={() => setJoining(true)}>Join</Button>
+          </div>
+          <div className="space-y-4 p-4 border rounded-2xl shadow-sm bg-white">
+            <h2 className="text-xl font-semibold">Host a Game</h2>
+            <Button className="w-full" onClick={() => setHosting(true)}>Host Setup</Button>
+            <div className="flex items-center gap-2 my-2">
+              <div className="flex-1 h-px bg-gray-300"></div>
+              <span>OR</span>
+              <div className="flex-1 h-px bg-gray-300"></div>
+            </div>
+            <Button className="w-full flex items-center justify-center gap-2" variant="secondary">
+              <FcGoogle className="text-xl" /> Continue with Google
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// --- Guess Form Component ---
+function GuessForm({ players, onGuess, guesser }) {
+  const [target, setTarget] = useState("");
+  const [guess, setGuess] = useState("");
+
+  const availableTargets = players.filter(p => p.name !== guesser);
+
+  return (
+    <div className="space-y-2">
+      <select value={target} onChange={(e) => setTarget(e.target.value)} className="border p-1 rounded w-full">
+        <option value="">Select Target</option>
+        {availableTargets.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+      </select>
+      <select value={guess} onChange={(e) => setGuess(e.target.value)} className="border p-1 rounded w-full">
+        <option value="">Select Password Guess</option>
+        {['alpha','beta','gamma'].map(pw => <option key={pw} value={pw}>{pw}</option>)}
+      </select>
+      <Button className="w-full" onClick={() => { if(target && guess) onGuess(guesser, target, guess); }}>Guess</Button>
+    </div>
+  );
+}
